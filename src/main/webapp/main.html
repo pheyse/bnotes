@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Bnotes</title>
+<script src="vue.js"></script>
+
+<link rel="stylesheet" href="w3.css">
+<link rel="stylesheet" href="w3-theme-blue-grey.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+
+<style>
+body {background-color: #f8f8f8;}
+h1, h2, h3, h4, h5, h6, h7 {
+   padding-bottom: 0px;
+   margin-bottom: 0px;
+}
+
+td, th {
+    border: 0px solid black;
+}
+
+table {
+    border-collapse: collapse;
+	background-color: #ffffff;
+	margin-bottom: 5mm;
+}
+.miniButtonWithPadding{
+    padding-left:1mm;
+	padding-right:1mm;
+	background:#dfe5e8;
+	cursor: pointer;
+}
+.miniButton{
+	background:#dfe5e8;
+	cursor: pointer;
+}
+</style>
+
+
+
+
+
+
+</head>
+<body class="w3-theme-l4">
+	<div id="app">
+    <table v-if="showDebugInfo" style="background:#aaffaa" width="100%"><tr><td>
+      <span>documentId = {{documentId}}.</span>
+      <span>selectedDocumentId = {{selectedDocumentId}}</span>
+      <span>userName = {{userName}}</span>
+      <br>
+    
+    
+      <button v-on:click="testButtonClicked">Test</button>
+      <button v-on:click="loadDocumentsButtonClicked">Load Documents</button>
+      <br>
+      <br>
+      {{ message }} 
+      <br><br><br><br>
+      </td></tr></table>
+    
+  	<div v-if="mode!='login'" class="w3-bar w3-large w3-theme-d4" style="padding-top: 2mm;padding-bottom: 2mm;padding-left: 2mm;">
+      <span ><img src="logo.png" height="55mm" v-on:click="toggleShowDebugInfo()" style="padding-bottom: 2mm;"/></span>&nbsp;&nbsp;&nbsp;
+      <span>Documents:</span>
+      <select v-model="selectedDocumentId" @change="onDocumentSelected($event, selectedDocumentId)" style="max-width: 60mm;">
+        <option v-for="(i, index) in documents" v-bind:value="i.documentId">{{i.title}}</option>
+      </select>
+      &nbsp;
+      <nobr>
+        <span title="create new document" v-on:click="newDocumentChooseName()" style="cursor: pointer;" >&#10010;</span>
+        <span title="rename the document" v-on:click="renameDocument()" style="cursor: pointer;">&#9998;</span>
+        <span title="delete the document" v-on:click="deleteDocumentUnconfirmed()" style="cursor: pointer;">&cross;</span>
+      </nobr>
+  </div>
+
+  <div v-if="mode=='login'" class="w3-container w3-content">
+    <br><br><br>
+
+    <div class="w3-panel w3-white w3-card w3-display-container" style="max-width: 100mm; margin-left: auto; margin-right: auto;">
+        <br>
+        <!--<span><img style="display: block; margin-left: auto; margin-right: auto;" src="logo.png" height="70mm" v-on:click="toggleShowDebugInfo()"/></span>-->
+        <span><img src="logo.png" height="70mm" v-on:click="toggleShowDebugInfo()"/></span>
+        <br><br>
+        <span class="w3-text-red"><i>{{loginMessage}}</i></span>
+
+
+
+
+        <form ref="loginForm" class="login" @submit.prevent="login()">
+
+          <table width="100%">
+            <tr>
+              <td>Username</td>
+            </tr>
+            <tr>
+              <td width="100%">
+                <input id="username" required style="width:90%;" v-model="userName" ></input>
+              </td>
+            </tr>
+            <tr>
+              <td></td>
+            </tr>
+            <tr>
+              <td>Password</td>
+            </tr>
+            <tr>
+              <td width="100%">
+                <input id="password" required style="width:90%;" type="password" v-model="password" v-on:keyup.enter="$refs.loginButton.click()" ></input>
+              </td>
+            </tr>
+          </table>
+          <button ref="loginButton" style="display: none;" type="submit">Login</button>
+        </form>
+
+        <br><br>
+        <span class="w3-display-bottomleft w3-padding">
+          <span class="w3-text-blue" title="login" style="cursor: pointer;" v-on:click="$refs.loginButton.click()">login</span>
+        </span>
+      </div>
+	</div>
+
+  <div class="w3-container w3-content">
+
+    <div v-if="(mode=='view') && (documentId!=null)">
+      <p class="w3-opacity"><b><h1>{{documentTitle}}</h1></b></p> 
+
+      <div v-if="chapters.length" class="w3-panel w3-white w3-card w3-display-container">
+        <span v-if="chapters.length">
+        <p class="w3-text-blue"><b>Content&nbsp;&nbsp;&nbsp;</b>
+        </p>
+
+        <span class="w3-display-topright w3-padding">
+          <span class="w3-text-blue" title="edit chapter hierarchy" style="cursor: pointer;" v-if="!editChapterHierarchy" v-on:click="toggleEditChapterHierarchy()">&#9998;</span>
+          <span class="w3-text-blue" title="finish editing chapter hierarchy" style="cursor: pointer;" v-if="editChapterHierarchy" v-on:click="toggleEditChapterHierarchy()">&#x2714;</span>
+        </span>
+
+        <span v-for="(i, index) in chapters" width="100%">
+          <div>
+            <span v-if="editChapterHierarchy">
+              <span class="miniButtonWithPadding" v-on:click="moveChapter(i.chapterId, -1)">&uarr;</span>
+              <span class="miniButtonWithPadding" v-on:click="moveChapter(i.chapterId, +1)">&darr;</span>
+              <span class="miniButton" v-on:click="changeChapter(i.chapterId, i.level - 1, i.title, i.body)">&larr;</span>
+              <span class="miniButton" v-on:click="changeChapter(i.chapterId, i.level + 1, i.title, i.body)">&rarr;</span>
+              &nbsp;&nbsp;
+            </span>
+            <span v-if="i.level == 1" class="w3-text-blue" style='padding-left:  0mm' ><a v-bind:href="'#cap' + index">{{i.indexLabel}} {{ i.title }}</a></span>
+            <span v-if="i.level == 2" class="w3-text-blue" style='padding-left:  3mm;'><a v-bind:href="'#cap' + index">{{i.indexLabel}} {{ i.title }}</a></span>
+            <span v-if="i.level == 3" class="w3-text-blue" style='padding-left:  6mm;'><a v-bind:href="'#cap' + index">{{i.indexLabel}} {{ i.title }}</a></span>
+            <span v-if="i.level == 4" class="w3-text-blue" style='padding-left:  9mm;'><a v-bind:href="'#cap' + index">{{i.indexLabel}} {{ i.title }}</a></span>
+            <span v-if="i.level == 5" class="w3-text-blue" style='padding-left: 12mm;'><a v-bind:href="'#cap' + index">{{i.indexLabel}} {{ i.title }}</a></span>
+            <span v-if="i.level >= 6" class="w3-text-blue" style='padding-left: 15mm;'><a v-bind:href="'#cap' + index">{{i.indexLabel}} {{ i.title }}</a></span>
+          </div>
+        </span>
+      </span>
+      <br>
+      </div>
+    
+
+      <br>
+      <div v-for="(i, index) in chapters" width="100%">
+        <div v-if="chapterInEdit!=i.chapterId" class="w3-panel w3-white w3-card w3-display-container" >
+          <span class="w3-display-topright w3-padding">
+            <span title="edit chapter" style="cursor: pointer;" v-on:click="editChapter(i.chapterId, i.level, i.title, i.body)">&#9998;</span>
+            &nbsp;
+            <span title="move chapter up" style="cursor: pointer;" v-on:click="moveChapter(i.chapterId, -1)">&uarr;</span>
+            &nbsp;
+            <span title="move chapter down" style="cursor: pointer;" v-on:click="moveChapter(i.chapterId, +1)">&darr;</span>
+            &nbsp;
+            <span title="delete chapter" style="cursor: pointer;" v-on:click="deleteChapterUnconfirmed(i.chapterId)">X</span>
+          </span>
+
+          <br>
+          <h1 v-if="i.level == 1" v-bind:id="'cap' + index">{{i.indexLabel}} {{ i.title }}</h1>
+          <h2 v-if="i.level == 2" v-bind:id="'cap' + index">{{i.indexLabel}} {{ i.title }}</h2>
+          <h3 v-if="i.level == 3" v-bind:id="'cap' + index">{{i.indexLabel}} {{ i.title }}</h3>
+          <h4 v-if="i.level == 4" v-bind:id="'cap' + index">{{i.indexLabel}} {{ i.title }}</h4>
+          <h5 v-if="i.level == 5" v-bind:id="'cap' + index">{{i.indexLabel}} {{ i.title }}</h5>
+          <h6 v-if="i.level >= 6" v-bind:id="'cap' + index">{{i.indexLabel}} {{ i.title }}</h6>
+
+          <p>
+            {{ i.body }}
+          </p>
+          <p class="w3-text-blue" style="cursor: pointer;" v-on:click="addChapter(i.chapterId, i.level)">Add Chapter</p>
+        </div>
+
+
+        <div v-if="chapterInEdit==i.chapterId" class="w3-panel w3-white w3-card w3-display-container" >
+          <p class="w3-text-blue"><b>Editing Chapter</b>
+            <span class="w3-display-topright w3-padding">
+              <span style="cursor: pointer;" v-on:click="cancelEditChapter()">Cancel</span>
+              <span>|</span>
+              <span style="cursor: pointer;" title="save (Ctrl+Enter)" v-on:click="saveChapter(i.chapterId, index)">Save</span>
+            </span>
+            <table width="100%" style="margin-bottom:0px">
+              <tr>
+                <td width="10%">Title:</td>
+                <td width="90%"><input v-bind:id="'editorTitle' + index" style="width:80%;" v-model="chapterInEditTitle"></input></td>
+              </tr>
+              <tr>
+                <td width="10%">Level:</td>
+                <td width="90%"><select v-bind:id="'editorLevelChooser' + index" v-model="chapterInEditLevel">
+                  <option v-for="(item, index) in levels" :value="item">{{ index + 1 }}</option>
+                </select>
+              </td>
+            </tr>
+          </table>
+      Body:<br>
+      <textarea v-bind:id="'editorBody' + index" style="width:95%;" rows="20" v-model="chapterInEditBody" v-on:keyup.enter="if ($event.ctrlKey) saveChapter(i.chapterId, index);"></textarea><br>
+          <br><br>
+      <span class="w3-display-bottomleft w3-padding">
+        <span class="w3-text-blue" style="cursor: pointer;" v-on:click="cancelEditChapter()">Cancel</span>
+        <span class="w3-text-blue">|</span>
+        <span class="w3-text-blue" title="save (Ctrl+Enter)" style="cursor: pointer;" v-on:click="saveChapter(i.chapterId, index)">Save</span>
+      </span>
+
+
+      </p>
+    </div>  
+      
+    
+  </div>
+  
+
+
+
+
+        <p v-if="!chapters.length" class="w3-text-blue" style="cursor: pointer;" v-on:click="addChapter(-1, 1)">New Chapter</p>
+
+
+    </div>
+    
+    
+    
+    
+    <!-- -->
+    
+    
+    <br><br><br><br>
+    
+    
+    <div v-if="mode=='confirmDelete'">
+      <p>Do you really want to delete this chapter? (id={{chapterToDelete}})</p>
+      <button v-on:click="deleteCancelled()">Cancel</button>
+      <button v-on:click="deleteConfirmed()">Delete</button>
+    </div>
+    <div v-if="mode=='confirmDeleteDocument'">
+      <p>Do you really want to delete the document? (id={{documentId}})</p>
+      <button v-on:click="deleteDocumentCancelled()">Cancel</button>
+      <button v-on:click="deleteDocumentConfirmed()">Delete</button>
+    </div>
+    <div v-if="mode=='newDocumentChooseName'">
+      <p>New document. Please choose name:</p>
+      <input style="width:80%;" v-model="documentEditedTitle"></input>
+      <button v-on:click="newDocumentCancelled()">Cancel</button>
+      <button v-on:click="newDocumentWithName()">Create</button>
+    </div>
+    <div v-if="mode=='renameDocument'">
+      <p>Rename document. New name:</p>
+      <input style="width:80%;" v-model="documentEditedTitle"></input>
+      <button v-on:click="renameDocumentCancelled()">Cancel</button>
+      <button v-on:click="renameDocumentConfirmed()">Rename</button>
+    </div>
+  </div>
+</div>
+
+
+<script language="javascript" src="main.js"></script>
+
+
+</body>
+</html>

@@ -1,0 +1,1 @@
+https://start.spring.io/#!type=maven-project&language=java&platformVersion=2.2.6.RELEASE&packaging=war&jvmVersion=1.8&groupId=de.bright-side.bnotes&artifactId=bnotes&name=bnotes&description=Bnotes&packageName=de.bright-side.bnotes.bnotes&dependencies=web,h2,data-jpa,mysql
