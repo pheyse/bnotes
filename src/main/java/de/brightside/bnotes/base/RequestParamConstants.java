@@ -9,5 +9,7 @@ public class RequestParamConstants {
 	public static final String USER_NAME = "userName";
 	public static final String PASSWORD = "password";
 	public static final String DIRECTION = "direction";
+	public static final String FINISH_EDITING = "finishEditing";
+	public static final String GRANT_USER_NAME = "grantUserName";
 
 }

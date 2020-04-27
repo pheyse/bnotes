@@ -14,6 +14,9 @@ public class Response {
 	private Integer chapterToEditLevel;
 	private String documentTitle;
 	private Long selectedDocumentId;
+	private boolean finishEditing;
+	private String editChapterMessage;
+	private List<String> userChoices;
 	
 	public Response(String info, int status) {
 		this.info = info;
@@ -81,4 +84,28 @@ public class Response {
 		this.selectedDocumentId = selectedDocumentId;
 	}
 
+	public boolean isFinishEditing() {
+		return finishEditing;
+	}
+
+	public void setFinishEditing(boolean finishEditing) {
+		this.finishEditing = finishEditing;
+	}
+
+	public String getEditChapterMessage() {
+		return editChapterMessage;
+	}
+
+	public void setEditChapterMessage(String editChapterMessage) {
+		this.editChapterMessage = editChapterMessage;
+	}
+
+	public List<String> getUserChoices() {
+		return userChoices;
+	}
+
+	public void setUserChoices(List<String> userChoices) {
+		this.userChoices = userChoices;
+	}
+	
 }

@@ -5,7 +5,8 @@ public class ChapterDto {
 	private int level;
 	private String title;
 	private String indexLabel;
-	private String body;
+	private String bodyHtml;
+	private String bodyRaw;
 	public long getChapterId() {
 		return chapterId;
 	}
@@ -24,22 +25,28 @@ public class ChapterDto {
 	public void setTitle(String title) {
 		this.title = title;
 	}
-	public String getBody() {
-		return body;
-	}
-	public void setBody(String body) {
-		this.body = body;
-	}
 	public String getIndexLabel() {
 		return indexLabel;
 	}
 	public void setIndexLabel(String indexLabel) {
 		this.indexLabel = indexLabel;
 	}
+	public String getBodyHtml() {
+		return bodyHtml;
+	}
+	public void setBodyHtml(String bodyHtml) {
+		this.bodyHtml = bodyHtml;
+	}
+	public String getBodyRaw() {
+		return bodyRaw;
+	}
+	public void setBodyRaw(String bodyRaw) {
+		this.bodyRaw = bodyRaw;
+	}
 	@Override
 	public String toString() {
 		return "ChapterDto [chapterId=" + chapterId + ", level=" + level + ", title=" + title + ", indexLabel="
-				+ indexLabel + ", body=" + body + "]";
+				+ indexLabel + ", bodyHtml=" + bodyHtml + ", bodyRaw=" + bodyRaw + "]";
 	}
 	
 }

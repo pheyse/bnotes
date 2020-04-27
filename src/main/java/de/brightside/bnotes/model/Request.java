@@ -6,6 +6,7 @@ public class Request {
 	private String action;
 	private long userId;
 	private Map<String, String> parameters;
+	
 	public String getAction() {
 		return action;
 	}

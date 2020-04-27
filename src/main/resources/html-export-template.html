@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${title}</title>
+
+
+<style>
+h1, h2, h3, h4, h5, h6, h7 {
+   padding-bottom: 0px;
+   margin-bottom: 0px;
+}
+
+td, th {
+    border: 0px solid black;
+}
+
+table {
+    border-collapse: collapse;
+	background-color: #ffffff;
+	margin-bottom: 5mm;
+}
+.miniButtonWithPadding{
+    padding-left:1mm;
+	padding-right:1mm;
+	background:#dfe5e8;
+	cursor: pointer;
+}
+.miniButton{
+	background:#dfe5e8;
+	cursor: pointer;
+}
+
+table.brightmarkdown{border-collapse: collapse;}
+table.brightmarkdown td {border: 1px solid black; padding: 3px;}
+table.brightmarkdown th {border: 1px solid black; padding: 3px;}
+table.brightmarkdown th {background-color: #a0a0a0;}
+table.brightmarkdown tr:nth-child(odd) {background-color: #d8d8d8;}
+table.brightmarkdown tr:nth-child(even) {background-color: #ffffff;}
+
+.chapter-view img{
+  border-style: solid;
+}
+
+.chapter-view h1{font-size:8mm;}
+.chapter-view h2{font-size:7mm;}
+.chapter-view h3{font-size:6mm;}
+.chapter-view h4{font-size:5mm;}
+.chapter-view h5{font-size:5mm;}
+.chapter-view h6{font-size:5mm;}
+.chapter-view h7{font-size:5mm;}
+</style>
+
+</head>
+<body >
+  <h1>${documentTitle}</h1>
+  <br> 
+<i>(${exportInfo})</i>
+  <br><br>
+  <b>Content&nbsp;&nbsp;&nbsp;</b><br>
+${toc}
+<br>	
+${chapters}
+</body>
+</html>

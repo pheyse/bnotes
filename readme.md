@@ -21,3 +21,14 @@ Viewing a document
 Editing a document
 
 ![Edit Document](https://github.com/pheyse/bnotes/blob/master/screenshots/document-edit.png "Edit Document")
+
+## Change History
+ - Version 1.0.0 (2020-04-07)
+   - initial version 
+ - Version 1.1.0 (2020-04-27)
+   - using BrightMarkdown so that the text can be written in markdown style
+   - favicon
+   - documents can be shared between users
+   - export web services and PowerShell script to export all server data
+   - saving w/o closing the edit window 
+

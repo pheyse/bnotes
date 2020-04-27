@@ -2,6 +2,8 @@
 <html>
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" type="image/png" href="favicon.ico">
 <title>Bnotes</title>
 <script src="vue.js"></script>
 
@@ -35,6 +37,25 @@ table {
 	background:#dfe5e8;
 	cursor: pointer;
 }
+
+table.brightmarkdown{border-collapse: collapse;}
+table.brightmarkdown td {border: 1px solid black; padding: 3px;}
+table.brightmarkdown th {border: 1px solid black; padding: 3px;}
+table.brightmarkdown th {background-color: #a0a0a0;}
+table.brightmarkdown tr:nth-child(odd) {background-color: #d8d8d8;}
+table.brightmarkdown tr:nth-child(even) {background-color: #ffffff;}
+
+.chapter-view img{
+  border-style: solid;
+}
+
+.chapter-view h1{font-size:8mm;}
+.chapter-view h2{font-size:7mm;}
+.chapter-view h3{font-size:6mm;}
+.chapter-view h4{font-size:5mm;}
+.chapter-view h5{font-size:5mm;}
+.chapter-view h6{font-size:5mm;}
+.chapter-view h7{font-size:5mm;}
 </style>
 
 
@@ -71,6 +92,7 @@ table {
         <span title="create new document" v-on:click="newDocumentChooseName()" style="cursor: pointer;" >&#10010;</span>
         <span title="rename the document" v-on:click="renameDocument()" style="cursor: pointer;">&#9998;</span>
         <span title="delete the document" v-on:click="deleteDocumentUnconfirmed()" style="cursor: pointer;">&cross;</span>
+        <span title="grant document access" v-on:click="grantDocumentAccess()" style="cursor: pointer;"><img src="user.png" height="15mm"></span>
       </nobr>
   </div>
 
@@ -140,8 +162,8 @@ table {
             <span v-if="editChapterHierarchy">
               <span class="miniButtonWithPadding" v-on:click="moveChapter(i.chapterId, -1)">&uarr;</span>
               <span class="miniButtonWithPadding" v-on:click="moveChapter(i.chapterId, +1)">&darr;</span>
-              <span class="miniButton" v-on:click="changeChapter(i.chapterId, i.level - 1, i.title, i.body)">&larr;</span>
-              <span class="miniButton" v-on:click="changeChapter(i.chapterId, i.level + 1, i.title, i.body)">&rarr;</span>
+              <span class="miniButton" v-on:click="changeChapter(i.chapterId, i.level - 1, i.title, i.bodyRaw)">&larr;</span>
+              <span class="miniButton" v-on:click="changeChapter(i.chapterId, i.level + 1, i.title, i.bodyRaw)">&rarr;</span>
               &nbsp;&nbsp;
             </span>
             <span v-if="i.level == 1" class="w3-text-blue" style='padding-left:  0mm' ><a v-bind:href="'#cap' + index">{{i.indexLabel}} {{ i.title }}</a></span>
@@ -161,7 +183,7 @@ table {
       <div v-for="(i, index) in chapters" width="100%">
         <div v-if="chapterInEdit!=i.chapterId" class="w3-panel w3-white w3-card w3-display-container" >
           <span class="w3-display-topright w3-padding">
-            <span title="edit chapter" style="cursor: pointer;" v-on:click="editChapter(i.chapterId, i.level, i.title, i.body)">&#9998;</span>
+            <span title="edit chapter" style="cursor: pointer;" v-on:click="editChapter(i.chapterId, i.level, i.title, i.bodyRaw)">&#9998;</span>
             &nbsp;
             <span title="move chapter up" style="cursor: pointer;" v-on:click="moveChapter(i.chapterId, -1)">&uarr;</span>
             &nbsp;
@@ -178,8 +200,8 @@ table {
           <h5 v-if="i.level == 5" v-bind:id="'cap' + index">{{i.indexLabel}} {{ i.title }}</h5>
           <h6 v-if="i.level >= 6" v-bind:id="'cap' + index">{{i.indexLabel}} {{ i.title }}</h6>
 
-          <p>
-            {{ i.body }}
+          <p class="chapter-view" v-html="i.bodyHtml">
+            
           </p>
           <p class="w3-text-blue" style="cursor: pointer;" v-on:click="addChapter(i.chapterId, i.level)">Add Chapter</p>
         </div>
@@ -188,9 +210,11 @@ table {
         <div v-if="chapterInEdit==i.chapterId" class="w3-panel w3-white w3-card w3-display-container" >
           <p class="w3-text-blue"><b>Editing Chapter</b>
             <span class="w3-display-topright w3-padding">
+              <span style="cursor: pointer;" title="Show BrightMarkdown info" v-on:click="showBrightMarkdownInfo()">Info</span>
+              <span>|</span>
               <span style="cursor: pointer;" v-on:click="cancelEditChapter()">Cancel</span>
               <span>|</span>
-              <span style="cursor: pointer;" title="save (Ctrl+Enter)" v-on:click="saveChapter(i.chapterId, index)">Save</span>
+              <span style="cursor: pointer;" title="save (Ctrl+Enter) (or Alt+Enter to keep editing)" v-on:click="saveChapter(i.chapterId, index, true)">Save</span>
             </span>
             <table width="100%" style="margin-bottom:0px">
               <tr>
@@ -206,12 +230,15 @@ table {
             </tr>
           </table>
       Body:<br>
-      <textarea v-bind:id="'editorBody' + index" style="width:95%;" rows="20" v-model="chapterInEditBody" v-on:keyup.enter="if ($event.ctrlKey) saveChapter(i.chapterId, index);"></textarea><br>
-          <br><br>
+      <textarea v-bind:id="'editorBody' + index" style="width:95%;" rows="20" v-model="chapterInEditBody" v-on:keyup.enter="if ($event.ctrlKey) saveChapter(i.chapterId, index, true);if ($event.altKey) saveChapter(i.chapterId, index, false);"></textarea><br>
+        <i>{{editChapterMessage}}</i>
+        <br><br>
       <span class="w3-display-bottomleft w3-padding">
+        <span class="w3-text-blue" style="cursor: pointer;" title="Show BrightMarkdown info" v-on:click="showBrightMarkdownInfo()">Info</span>
+        <span class="w3-text-blue">|</span>
         <span class="w3-text-blue" style="cursor: pointer;" v-on:click="cancelEditChapter()">Cancel</span>
         <span class="w3-text-blue">|</span>
-        <span class="w3-text-blue" title="save (Ctrl+Enter)" style="cursor: pointer;" v-on:click="saveChapter(i.chapterId, index)">Save</span>
+        <span class="w3-text-blue" title="save (Ctrl+Enter) (or Alt+Enter to keep editing)" style="cursor: pointer;" v-on:click="saveChapter(i.chapterId, index, true)">Save</span>
       </span>
 
 
@@ -260,6 +287,13 @@ table {
       <input style="width:80%;" v-model="documentEditedTitle"></input>
       <button v-on:click="renameDocumentCancelled()">Cancel</button>
       <button v-on:click="renameDocumentConfirmed()">Rename</button>
+    </div>
+    <div v-if="mode=='grantAccess'">
+      <p>Grant access to this document. Users:</p>
+      <div v-for="i in userChoices" width="100%">
+        <button v-on:click="grantAccessChosen(i)">Grant to user '{{i}}'</button>
+      </div>
+      <button v-on:click="grantAccessDone()">Done</button>
     </div>
   </div>
 </div>

@@ -21,6 +21,16 @@ public class RequestParamUtil {
 		return value;
 	}
 	
+	public static boolean getBooleanValue(Request request, String keyName) throws Exception{
+		String value = request.getParameters().get(keyName);
+		if ("TRUE".equalsIgnoreCase(value)) {
+			return true;
+		} else if ("FALSE".equalsIgnoreCase(value)) {
+			return false;
+		}
+		throw new Exception("Cannot get boolean value from value '" + value + "'");
+	}
+	
 	public static long getDocumentId(Request request) throws Exception{
 		return getLongValue(request, RequestParamConstants.DOC_ID);
 	}
@@ -29,6 +39,10 @@ public class RequestParamUtil {
 		return getLongValue(request, RequestParamConstants.CHAPTER_ID);
 	}
 
+	public static boolean getFinishEditing(Request request) throws Exception {
+		return getBooleanValue(request, RequestParamConstants.FINISH_EDITING);
+	}
+	
 	public static int getLevel(Request request) throws Exception {
 		return getIntValue(request, RequestParamConstants.LEVEL);
 	}
@@ -51,5 +65,9 @@ public class RequestParamUtil {
 
 	public static String getPassword(Request request) throws Exception {
 		return getStringValue(request, RequestParamConstants.PASSWORD);
+	}
+
+	public static String getGrantUserName(Request request) throws Exception {
+		return getStringValue(request, RequestParamConstants.GRANT_USER_NAME);
 	}
 }
