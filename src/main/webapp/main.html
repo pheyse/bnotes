@@ -9,59 +9,8 @@
 
 <link rel="stylesheet" href="w3.css">
 <link rel="stylesheet" href="w3-theme-blue-grey.css">
+<link rel="stylesheet" href="bnotes.css">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
-
-<style>
-body {background-color: #f8f8f8;}
-h1, h2, h3, h4, h5, h6, h7 {
-   padding-bottom: 0px;
-   margin-bottom: 0px;
-}
-
-td, th {
-    border: 0px solid black;
-}
-
-table {
-    border-collapse: collapse;
-	background-color: #ffffff;
-	margin-bottom: 5mm;
-}
-.miniButtonWithPadding{
-    padding-left:1mm;
-	padding-right:1mm;
-	background:#dfe5e8;
-	cursor: pointer;
-}
-.miniButton{
-	background:#dfe5e8;
-	cursor: pointer;
-}
-
-table.brightmarkdown{border-collapse: collapse;}
-table.brightmarkdown td {border: 1px solid black; padding: 3px;}
-table.brightmarkdown th {border: 1px solid black; padding: 3px;}
-table.brightmarkdown th {background-color: #a0a0a0;}
-table.brightmarkdown tr:nth-child(odd) {background-color: #d8d8d8;}
-table.brightmarkdown tr:nth-child(even) {background-color: #ffffff;}
-
-.chapter-view img{
-  border-style: solid;
-}
-
-.chapter-view h1{font-size:8mm;}
-.chapter-view h2{font-size:7mm;}
-.chapter-view h3{font-size:6mm;}
-.chapter-view h4{font-size:5mm;}
-.chapter-view h5{font-size:5mm;}
-.chapter-view h6{font-size:5mm;}
-.chapter-view h7{font-size:5mm;}
-</style>
-
-
-
-
-
 
 </head>
 <body class="w3-theme-l4">
@@ -70,6 +19,7 @@ table.brightmarkdown tr:nth-child(even) {background-color: #ffffff;}
       <span>documentId = {{documentId}}.</span>
       <span>selectedDocumentId = {{selectedDocumentId}}</span>
       <span>userName = {{userName}}</span>
+      <span>JWT = {{jwt}}</span>
       <br>
     
     
@@ -101,13 +51,9 @@ table.brightmarkdown tr:nth-child(even) {background-color: #ffffff;}
 
     <div class="w3-panel w3-white w3-card w3-display-container" style="max-width: 100mm; margin-left: auto; margin-right: auto;">
         <br>
-        <!--<span><img style="display: block; margin-left: auto; margin-right: auto;" src="logo.png" height="70mm" v-on:click="toggleShowDebugInfo()"/></span>-->
         <span><img src="logo.png" height="70mm" v-on:click="toggleShowDebugInfo()"/></span>
         <br><br>
         <span class="w3-text-red"><i>{{loginMessage}}</i></span>
-
-
-
 
         <form ref="loginForm" class="login" @submit.prevent="login()">
 
@@ -183,13 +129,22 @@ table.brightmarkdown tr:nth-child(even) {background-color: #ffffff;}
       <div v-for="(i, index) in chapters" width="100%">
         <div v-if="chapterInEdit!=i.chapterId" class="w3-panel w3-white w3-card w3-display-container" >
           <span class="w3-display-topright w3-padding">
-            <span title="edit chapter" style="cursor: pointer;" v-on:click="editChapter(i.chapterId, i.level, i.title, i.bodyRaw)">&#9998;</span>
+            <span title="edit chapter" style="cursor: pointer;" v-on:click="requestEditChapter(i.chapterId)">&#9998;</span>
             &nbsp;
             <span title="move chapter up" style="cursor: pointer;" v-on:click="moveChapter(i.chapterId, -1)">&uarr;</span>
             &nbsp;
             <span title="move chapter down" style="cursor: pointer;" v-on:click="moveChapter(i.chapterId, +1)">&darr;</span>
             &nbsp;
-            <span title="delete chapter" style="cursor: pointer;" v-on:click="deleteChapterUnconfirmed(i.chapterId)">X</span>
+            <div class="dropdown" style="float:right;">
+              <span title="more actions" style="cursor: pointer;"><img src="menu.png" height="15mm">
+              <div class="dropdown-content">
+                <a href="#" v-on:click="uploadImage(i.chapterId, -1)">Upload Image</a>
+                <a href="#" v-on:click="cloneChapter(i.chapterId)">Duplicate chapter</a>
+                <a href="#" v-on:click="chooseDocToMoveChapter(i.chapterId)">Move to other document</a>
+                <a href="#" v-on:click="deleteChapterUnconfirmed(i.chapterId)">Delete Chapter</a>
+              </div>
+              </span>
+            </div> 
           </span>
 
           <br>
@@ -204,6 +159,11 @@ table.brightmarkdown tr:nth-child(even) {background-color: #ffffff;}
             
           </p>
           <p class="w3-text-blue" style="cursor: pointer;" v-on:click="addChapter(i.chapterId, i.level)">Add Chapter</p>
+
+          <span class="w3-display-bottomright w3-padding">
+            <span title="edit chapter" style="cursor: pointer;" v-on:click="requestEditChapter(i.chapterId)">&#9998;</span>
+          </span>
+
         </div>
 
 
@@ -229,21 +189,42 @@ table.brightmarkdown tr:nth-child(even) {background-color: #ffffff;}
               </td>
             </tr>
           </table>
-      Body:<br>
-      <textarea v-bind:id="'editorBody' + index" style="width:95%;" rows="20" v-model="chapterInEditBody" v-on:keyup.enter="if ($event.ctrlKey) saveChapter(i.chapterId, index, true);if ($event.altKey) saveChapter(i.chapterId, index, false);"></textarea><br>
-        <i>{{editChapterMessage}}</i>
-        <br><br>
-      <span class="w3-display-bottomleft w3-padding">
-        <span class="w3-text-blue" style="cursor: pointer;" title="Show BrightMarkdown info" v-on:click="showBrightMarkdownInfo()">Info</span>
-        <span class="w3-text-blue">|</span>
-        <span class="w3-text-blue" style="cursor: pointer;" v-on:click="cancelEditChapter()">Cancel</span>
-        <span class="w3-text-blue">|</span>
-        <span class="w3-text-blue" title="save (Ctrl+Enter) (or Alt+Enter to keep editing)" style="cursor: pointer;" v-on:click="saveChapter(i.chapterId, index, true)">Save</span>
-      </span>
+          Body:<br>
+          <textarea v-bind:id="'editorBody' + index" style="width:95%;" rows="20" v-model="chapterInEditBody" v-on:keyup.enter="if ($event.ctrlKey) saveChapter(i.chapterId, index, true);if ($event.altKey) saveChapter(i.chapterId, index, false);"></textarea><br>
+            <i>{{editChapterMessage}}</i>
+            <br><br>
+          <span class="w3-display-bottomleft w3-padding">
+            <span class="w3-text-blue" style="cursor: pointer;" title="Show BrightMarkdown info" v-on:click="showBrightMarkdownInfo()">Info</span>
+            <span class="w3-text-blue">|</span>
+            <span class="w3-text-blue" style="cursor: pointer;" v-on:click="cancelEditChapter()">Cancel</span>
+            <span class="w3-text-blue">|</span>
+            <span class="w3-text-blue" title="save (Ctrl+Enter) (or Alt+Enter to keep editing)" style="cursor: pointer;" v-on:click="saveChapter(i.chapterId, index, true)">Save</span>
+          </span>
+          </p>
 
 
-      </p>
-    </div>  
+          <p v-if="i.images.length" class="w3-text-blue">Images:</p>
+          <table v-for="image in i.images" width="100%">
+<!--             <tr>
+              <td><img :src="getImgUrl(image.id)" height="80mm" border="1mm"/></td>
+            </tr>
+ -->
+             <tr>
+              <td><img :src="getImgUrlWithJWT(image.id)" height="80mm" border="1mm"/></td>
+            </tr>
+            <tr>
+              <td>In text write {{'"![' + image.name + ']"'}} (or e.g. {{'"![' + image.name + ' height=100mm]"  )'}}</td>
+            </tr>
+            <tr>
+              <td><button v-on:click="confirmDeleteImage(image.id)">Delete image</button></td>
+            </tr>
+            <tr>
+              <td><p></p></td>
+            </tr>
+          </table>
+
+          <p></p>
+        </div>  
       
     
   </div>
@@ -295,12 +276,37 @@ table.brightmarkdown tr:nth-child(even) {background-color: #ffffff;}
       </div>
       <button v-on:click="grantAccessDone()">Done</button>
     </div>
+    <div v-if="mode=='uploadImage'">
+      <h2>Upload image</h2>
+      <br/>
+      <form method="POST" enctype="multipart/form-data" id="imageUploadForm">
+        Image location: <input type="file" name="file"/>
+        <input type="hidden" name="jwt" v-model="imageUploadJwt" />
+        <input type="hidden" name="documentId" v-model="imageUploadDocumentId" />
+        <input type="hidden" name="chapterId" v-model="imageUploadChapterId" />
+        <br/>
+        Image name (no spaces or special characters): <input type="text" name="imageName" v-model="imageUploadName" />
+      </form>
+      <br/>
+      <button v-on:click="uploadImageForm">Upload Image</button>
+      <button v-on:click="cancelUploadImage">Cancel</button>
+      <br/>
+      <span>{{uploadImageMessage}}</span>
+    </div> 
   </div>
+  <div v-if="mode=='chooseDocumentToMoveTo'">
+    <p>Choose document where the chapter should be moved</p>
+    <div v-for="i in possibleDocumentsToMoveTo" width="100%">
+      <button v-on:click="moveChapterToOtherDoc(i.documentId)">Move to document '{{i.title}}'</button>
+    </div>
+    <button v-on:click="cancelMoveChapterToOtherDoc()">Cancel</button>
+  </div>
+
 </div>
 
 
-<script language="javascript" src="main.js"></script>
 
+<script language="javascript" src="main.js"></script>
 
 </body>
 </html>

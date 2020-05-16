@@ -73,6 +73,4 @@ public class Document {
 				+ ", creationTime=" + creationTime + ", active=" + active + "]";
 	}
 	
-	
-	
 }

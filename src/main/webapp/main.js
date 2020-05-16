@@ -1,30 +1,34 @@
 var app = new Vue({
   el: '#app',
   data: {
-    message: 'Hello Vue!',
+    message: 'Hello',
 	todos: [
       { text: 'Learn JavaScript' },
       { text: 'Learn Vue' },
       { text: 'Build something awesome' }
     ],
     levels:[1, 2, 3, 4, 5, 6],
-	mode: 'login', /*initially: 'login', use e.g. 'view' for debugging. values: login, view, confirmDelete, confirmDeleteDocument, newDocumentChooseName, renameDocument, grantAccess*/
+	mode: 'login', /*initially: 'login', use e.g. 'view' for debugging. values: login, view, confirmDelete, confirmDeleteDocument, newDocumentChooseName, renameDocument, grantAccess, uploadImage, chooseDocumentToMoveTo*/
 	documentTitle: 'This is the document title',
 	documentId: null, /* initially: null. Use 1 for debugging. */
 	userName: null,
 	password: null,
+	jwt: null,
 	loginMessage: "",
 	chapterToDelete: -1,
 	chapterInEdit: -1,
 	chapterInEditLevel: 0,
 	chapterInEditTitle: "",
 	chapterInEditBody: "",
+	chapterToMove: -1,
 	documentEditedTitle: "",
 	selectedDocumentId: null,
 	editChapterHierarchy: false,
 	showDebugInfo: false,
 	editChapterMessage: "",
 	userChoices: [],
+	uploadImageMessage: "",
+	possibleDocumentsToMoveTo: [],
 	chapters: [],
 	chapters2: [
       { title: 'Chapter One', indexLabel: '1.', level: 1, chapterId: 1, bodyRaw: 'Dummy Body Raw:\n\n#Bullet Points\n - item *one*\n - item two', bodyHtml: '<span><h1>Bullet Points</h1><ul><li><span>item </span><b>one</b></li><ul><li><span>item </span><span style="color:red">the red</span></li></ul><li><i>item two</i></li><ul><li>items two-a</li><li><span/><pre style="background:lightgrey"><code><span><br/></span><span style="color:purple;font-weight:bold">int</span><span> x = 2;<br/></span><span style="color:purple;font-weight:bold">if</span><span> (z == 42){<br/>   processData();<br/>}<br/>String y = </span><span style="color:blue">"hello"</span><span>;</span></code></pre></li></ul><li>item three</li><ul><li><img align="top" border="1mm" height="50mm" src="logo.png"/></li></ul><li><span>item four contains the code </span><code style="background:lightgrey"><span style="color:purple;font-weight:bold">int</span><span> x = </span><span style="color:blue">"hello"</span><span>;</span></code><span> within the text</span></li></ul><p/><h1>Table:</h1><table class="brightmarkdown"><tr><th>col 1</th><th>col 2</th></tr><tr><td>one</td><td>a</td></tr><tr><td>two</td><td>b</td></tr><tr><td>three</td><td>c</td></tr></table><p><span>More text...</span><br/><span>Text with code:</span><br/><span>End of the text.</span></p></span>' },
@@ -43,6 +47,7 @@ var app = new Vue({
 	},
 	mounted: function(){
 		//: debug settings:
+		//this.showDebugInfo = true;
 		/*
 		this.mode = 'view';
 		this.documentId = 1;
@@ -55,9 +60,11 @@ var app = new Vue({
 			//this.showDebugInfo = !this.showDebugInfo; 
 		},
 		login: function(){
-			var request = createRequest("login");
-			request.parameters["userName"] = this.userName;		
-			executeRequest(request);
+			//var request = createRequest("login");
+			//request.parameters["userName"] = this.userName;		
+			//executeRequest(request);
+
+			performLogin(this.userName, this.password);
 	},
 		toggleEditChapterHierarchy: function(){
 			this.editChapterHierarchy = !this.editChapterHierarchy;
@@ -72,6 +79,14 @@ var app = new Vue({
 				var request = createRequest("getChapters");
 				executeRequest(request);
 			}
+		},
+    requestEditChapter: function (chapterId) {
+			//: instead of editing the chapter right away by calling "editChapter",
+			//: a server request is sent. This way if there is a timeout in the JWT or a connection problem
+			//: the user is prompted to login before editing the chapter to prevent loosing the user's changes
+			var request = createRequest("editChapter");
+			request.parameters["chapterId"] = chapterId;
+			executeRequest(request);			
 		},
     editChapter: function (chapterId, chapterLevel, title, body) {
       this.message = "Edit chapter: " + chapterId;
@@ -243,15 +258,56 @@ var app = new Vue({
 				request.parameters["level"] = newLevel;
 				request.parameters["title"] = newTitle;
 				request.parameters["body"] = newBody;
+				request.parameters["finishEditing"] = false;
 				
 				executeRequest(request);
 			} catch (err){
 				console.log("Error: " + errorToString(err));
 			}
-		}, 
+		},
+		cloneChapter: function(chapterId){
+			try{
+				var request = createRequest("cloneChapter");
+				request.parameters["chapterId"] = chapterId;
+				executeRequest(request);
+			} catch (err){
+				console.log("Error: " + errorToString(err));
+			}
+		},
+		chooseDocToMoveChapter: function(chapterId){
+			this.chapterToMove = chapterId;
+		 	try{
+				var request = createRequest("chooseDocToMoveChapter");
+				request.parameters["chapterId"] = chapterId;
+				executeRequest(request);
+			} catch (err){
+				console.log("Error: " + errorToString(err));
+			} 
+		},
+		cancelMoveChapterToOtherDoc: function(){
+			this.mode = "view";
+		},
+		moveChapterToOtherDoc: function(destDocId){
+			try{
+				var request = createRequest("moveChapterToOtherDoc");
+				request.parameters["chapterId"] = this.chapterToMove;
+				request.parameters["destDocId"] = destDocId;
+				executeRequest(request);
+			} catch (err){
+				console.log("Error: " + errorToString(err));
+			}
+		},
     cancelEditChapter: function () {
       this.message = "cancel edit chapter";
-	  this.chapterInEdit = -1;
+	  	this.chapterInEdit = -1;
+		}, 
+		uploadImage: function (chapterId) {
+			this.mode = "uploadImage";
+			this.uploadImageMessage = "";
+			this.imageUploadJwt = this.jwt;
+			this.imageUploadDocumentId = this.documentId;
+			this.imageUploadChapterId = chapterId;
+			this.imageUploadName = "";
 		}, 
     showBrightMarkdownInfo: function () {
 			window.open("BrightMarkdownHelp", "_blank");    
@@ -263,6 +319,29 @@ var app = new Vue({
 			} catch (err){
 				console.log("Error: " + errorToString(err));
 			}
+		},
+		uploadImageForm: function(){
+			uploadImageForm(); //: call the method outside of the vue method array
+		},
+		cancelUploadImage: function(){
+			this.mode = "view";
+		},
+		getImgUrl: function(imageId){
+			return "image/" + imageId;
+		},
+		getImgUrlWithJWT: function(imageId){
+			return "image/" + imageId + "/" + this.jwt;
+		},
+		confirmDeleteImage: function(imageId){
+			if (confirm("Really delete this image?")){
+				try{
+					var request = createRequest("deleteImage");
+					request.parameters["imageId"] = imageId;
+					executeRequest(request);
+				} catch (err){
+					console.log("Error: " + errorToString(err));
+				}
+			};
 		},
 		testButtonClicked : function () {
 			try{
@@ -289,9 +368,75 @@ createRequest = function(actionName){
 		request.action = actionName;
     request.parameters = new Object();
 		request.parameters["docId"] = app.documentId;
-		request.parameters["userName"] = app.userName;
-		request.parameters["password"] = app.password;
+/* 		request.parameters["userName"] = app.userName;
+		request.parameters["password"] = app.password; */
     return request;
+};
+
+
+getDocumentElementById = function(id){
+	return document.getElementById(id)
+};
+
+uploadImageForm = function(request){
+	console.log("Bnotes: uploadImageForm: 1")
+	var xhr = new XMLHttpRequest();
+	xhr.open("POST", "uploadImage"); 
+	xhr.setRequestHeader("Authorization", "Bearer " + app.jwt);
+
+	var url = "uploadImage";
+	var formData = new FormData(document.getElementById("imageUploadForm")); 
+
+	xhr.onload = function(event){ 
+		console.log("uploadImageForm: success. Response: " + event.target.response)
+		processReply(xhr.responseText);
+    //alert("Success, server responded with: " + event.target.response); 
+	}; 
+	xhr.onerror = function(event){ 
+    alert("Error, server responded with: " + event.target.response); 
+	}; 
+	xhr.send(formData);
+};
+
+performLogin = function(username, password){
+	var xhr = new XMLHttpRequest();
+	console.log("Bnotes: performLogin: start")
+	var url = "users/signin";
+	xhr.open("POST", url, true);
+	xhr.setRequestHeader("Content-Type", "application/json");
+	xhr.onreadystatechange = function (vm) {
+		if (xhr.readyState === 4 && xhr.status === 200) {
+			var result = xhr.responseText;
+			console.log("Bnotes: performLogin: result = >>" + result + "<<")
+			app.jwt = result;
+			app.loginMessage = "";
+
+			//: once the login is done and the JWT has been received, get the documents (the response will also close the login form)
+			var request = createRequest("getDocuments");
+			executeRequest(request);
+
+		}	else if (xhr.readyState === 4) {
+			app.loginMessage = "Login failed";
+			console.log("Bnotes: performLogin: error = :" + xhr.readyState + ", " + xhr.status);
+			console.log("Bnotes: performLogin: other state. responseText = :" + xhr.responseText);
+			console.log("Bnotes: performLogin: other state. response = :" + xhr.response);
+			console.log("Bnotes: performLogin: other state. responseType = :" + xhr.responseType);
+			console.log("Bnotes: performLogin: other state. responseType = :" + xhr.responseType);
+			console.log("Bnotes: performLogin: other state. responseXML = :" + xhr.responseXML);
+			console.log("Bnotes: performLogin: other state. status = :" + xhr.status);
+			console.log("Bnotes: performLogin: other state. statusText = :" + xhr.statusText);
+			console.log("Bnotes: performLogin: other state object = :" + xhr);
+			console.log("Bnotes: execuperformLoginteRequest: other state object as JSON:" + JSON.stringify(xhr));
+		}
+	}.bind(xhr, this);
+	var loginDto = new Object();
+	loginDto.username = username;
+	loginDto.password = password;
+
+	var data = JSON.stringify(loginDto);
+	console.log("Bnotes: performLogin: url = >>" + url + "<<")
+	console.log("Bnotes: executeRequest: data = >>" + data + "<<")
+	xhr.send(data);
 };
 
 executeRequest = function(request){
@@ -300,6 +445,7 @@ executeRequest = function(request){
 	var url = "request";
 	xhr.open("POST", url, true);
 	xhr.setRequestHeader("Content-Type", "application/json");
+	xhr.setRequestHeader("Authorization", "Bearer " + app.jwt);
 	xhr.onreadystatechange = function (vm) {
 		if (xhr.readyState === 4 && xhr.status === 200) {
 			processReply(xhr.responseText);
@@ -340,14 +486,14 @@ processReply = function(jsonString){
 
   if (reply.status == 403){
 		app.mode = "login";
-		app.loginMessage = "Wrong username or password"
+		app.loginMessage = "Server response: No Access, session expired, wrong username or wrong password"
 		return;
 	}
 
 	app.mode = "view";
 
 	if ((typeof reply.chapterToEdit != "undefined") && (reply.chapterToEdit != null)){
-		app.editChapter(reply.chapterToEdit, reply.chapterToEditLevel, "", "");
+		app.editChapter(reply.chapterToEdit, reply.chapterToEditLevel, reply.chapterToEditTitle, reply.chapterToEditBody);
 	}
 	
 	if ((typeof reply.chapters != "undefined") && (reply.chapters != null)){
@@ -372,6 +518,7 @@ processReply = function(jsonString){
 		app.userChoices = reply.userChoices;
 		app.mode = "grantAccess";
 	}
+
 	if ((typeof reply.selectedDocumentId != "undefined") && (reply.selectedDocumentId != null)){
 		var useId = reply.selectedDocumentId;
 		if (useId == -1){
@@ -379,6 +526,15 @@ processReply = function(jsonString){
 		}
 		app.selectedDocumentId = useId;
 		app.documentId = useId;
+	}
+
+	if ((typeof reply.possibleDocumentsToMoveTo != "undefined") && (reply.possibleDocumentsToMoveTo != null)){
+		app.possibleDocumentsToMoveTo = reply.possibleDocumentsToMoveTo;
+		app.mode = "chooseDocumentToMoveTo";
+	}
+
+	if ((typeof reply.alertMessage != "undefined") && (reply.alertMessage != null)){
+		alert(reply.alertMessage); 
 	}
 
 

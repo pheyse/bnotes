@@ -2,16 +2,19 @@ package de.brightside.bnotes.service;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
+import javax.persistence.EntityManager;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.transaction.annotation.Transactional;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import de.bright_side.brightmarkdown.BrightMarkdown;
@@ -22,10 +25,12 @@ import de.brightside.bnotes.dao.ChapterRepo;
 import de.brightside.bnotes.dao.DocumentAccessRepo;
 import de.brightside.bnotes.dao.DocumentRepo;
 import de.brightside.bnotes.dao.HistoryLogRepo;
+import de.brightside.bnotes.dao.PictureRepo;
 import de.brightside.bnotes.dao.UserRepo;
 import de.brightside.bnotes.dto.ChapterDto;
 import de.brightside.bnotes.dto.DocumentDto;
 import de.brightside.bnotes.dto.ExportDataDto;
+import de.brightside.bnotes.dto.IdAndName;
 import de.brightside.bnotes.exceptions.WrongCredentialsException;
 import de.brightside.bnotes.logic.DocumentLogic;
 import de.brightside.bnotes.logic.ExportLogic;
@@ -34,11 +39,15 @@ import de.brightside.bnotes.model.Chapter;
 import de.brightside.bnotes.model.Document;
 import de.brightside.bnotes.model.DocumentAccess;
 import de.brightside.bnotes.model.HistoryLog;
+import de.brightside.bnotes.model.Picture;
+import de.brightside.bnotes.model.PictureIdNameAndType;
+import de.brightside.bnotes.model.PictureInfo;
 import de.brightside.bnotes.model.Request;
 import de.brightside.bnotes.model.Response;
-import de.brightside.bnotes.model.User;
 import de.brightside.bnotes.util.RequestParamUtil;
 
+
+@Transactional
 public class DocumentService {
     Logger logger = LoggerFactory.getLogger(DocumentService.class);
 	
@@ -50,13 +59,19 @@ public class DocumentService {
 	private UserRepo userRepo;
 	private DocumentAccessRepo documentAccessRepo;
 	private ExportLogic exportLogic = new ExportLogic();
+	private PictureRepo pictureRepo;
+
+	private EntityManager em;
 	
-	public DocumentService(UserRepo userRepo, DocumentAccessRepo documentAccessRepo, DocumentRepo documentsRepo, ChapterRepo chapterRepo, HistoryLogRepo historyLogRepo) {
+	public DocumentService(EntityManager em, UserRepo userRepo, DocumentAccessRepo documentAccessRepo, DocumentRepo documentsRepo
+			, ChapterRepo chapterRepo, HistoryLogRepo historyLogRepo, PictureRepo pictureRepo) {
+		this.em = em;
 		this.userRepo = userRepo;
 		this.documentAccessRepo = documentAccessRepo;
 		this.documentsRepo = documentsRepo;
 		this.chapterRepo = chapterRepo;
 		this.historyLogRepo = historyLogRepo;
+		this.pictureRepo = pictureRepo;
 	}
 
 	private Chapter createNewChapterEntity(long documentId, int level, long orderSequence) {
@@ -70,14 +85,17 @@ public class DocumentService {
 		return result;
 	}
 	
-	private List<ChapterDto> toChapterDtoList(List<Chapter> chapterEntityList) {
+	private List<ChapterDto> toChapterDtoList(String jwt, List<Chapter> chapterEntityList) {
+		return toChapterDtoList(jwt, chapterEntityList, false);
+	}
+	
+	private List<ChapterDto> toChapterDtoList(String jwt, List<Chapter> chapterEntityList, boolean exportImageFormat) {
 		List<ChapterDto> result = new ArrayList<ChapterDto>();
 		Map<Integer, Integer> indexPerChapter = new TreeMap<Integer, Integer>();
 		DocumentLogic logic = new DocumentLogic();
 		
-		BrightMarkdown brightMarkdown = new BrightMarkdown();
-		
 		for (Chapter entity: chapterEntityList) {
+			BrightMarkdown brightMarkdown = new BrightMarkdown();
 			int level = entity.getLevel();
 			logic.nextIndex(indexPerChapter, level);
 			
@@ -87,14 +105,25 @@ public class DocumentService {
 			dto.setTitle(entity.getTitle());
 			String markdownCode = null;
 			String bodyRaw = entity.getBody();
+			Collection<PictureIdNameAndType> idsAndNames = pictureRepo.findByChapterId(entity.getChapterId());
 			if (bodyRaw == null) {
 				bodyRaw = "";
 			}
-//			if (bodyRaw.isEmpty()) {
-//				//: internal bug that cannot process empty strings ("")
-//				bodyRaw = " ";
-//			}
-			bodyRaw = bodyRaw.replace("{nl}", "\n");
+			List<IdAndName> images = new ArrayList<IdAndName>();
+			for (PictureIdNameAndType i: idsAndNames) {
+				images.add(new IdAndName(i.getPicId(), i.getName()));
+				
+				String ending = "";
+				if (exportImageFormat) {
+					ending = "." + i.getType();
+				} else {
+					ending = "/" + jwt;
+				}
+				
+				brightMarkdown.addImageNameToPathMapping(i.getName(), "image/" + i.getPicId() + ending);
+			}
+			dto.setImages(images);
+			bodyRaw = replaceNewLineSymbol(bodyRaw);
 			try {
 				markdownCode = brightMarkdown.createHTML(bodyRaw, OutputType.EMBEDDABLE_HTML_CODE);
 			} catch (Exception e) {
@@ -104,6 +133,7 @@ public class DocumentService {
 			dto.setBodyHtml(markdownCode);
 			dto.setBodyRaw(bodyRaw);
 			dto.setIndexLabel(logic.getIndexLabel(indexPerChapter, level));
+			
 			result.add(dto);
 		}
 		return result;
@@ -120,11 +150,11 @@ public class DocumentService {
 		return result;
 	}
 	
-	private Response createChapterDisplayResponse(String userName, long documentId, String message) {
-		return createChapterDisplayResponse(userName, documentId, message, null, null);
+	private Response createChapterDisplayResponse(String userName, String jwt, long documentId, String message) {
+		return createChapterDisplayResponse(userName, jwt, documentId, message, null, null);
 	}
 
-	private Response createChapterDisplayResponse(String userName, long documentId, String message, Long chapterIdToEdit, Integer chapterIdToEditLevel) {
+	public Response createChapterDisplayResponse(String userName, String jwt, long documentId, String message, Long chapterIdToEdit, Integer chapterIdToEditLevel) {
 		Set<Long> userDocuments = documentAccessRepo.getUserDocuments(userName);
 
 		List<ChapterDto> chapterDtoList;
@@ -132,7 +162,7 @@ public class DocumentService {
 		if (userDocuments.contains(documentId)) {
 			Document document = documentsRepo.findById(documentId).get();
 			List<Chapter>  chapterEntityList = chapterRepo.getDocumentChapters(documentId);
-			chapterDtoList = toChapterDtoList(chapterEntityList);
+			chapterDtoList = toChapterDtoList(jwt, chapterEntityList);
 			title = document.getTitle();
 		} else {
 			chapterDtoList = new ArrayList<ChapterDto>();
@@ -167,23 +197,17 @@ public class DocumentService {
 		return response;
 	}
 	
-	public Response getChapters(Request request) throws Exception{
-		if (!credentialsOk(request)) {
-			return createWrongCredentialsResponse();
-		}
-		
+	public Response getChapters(String username, String jwt, Request request) throws Exception{
 		long documentId = RequestParamUtil.getDocumentId(request);
-		String userName = RequestParamUtil.getUserName(request);
-		return createChapterDisplayResponse(userName, documentId, "Response for: getChapters");
+		return createChapterDisplayResponse(username, jwt, documentId, "Response for: getChapters");
 	}
 	
-	public Response saveChapter(Request request) throws Exception {
-		if (!credentialsAndDocumentAccessOk(request)) {
-			return createWrongCredentialsResponse(); 
+	public Response saveChapter(String username, String jwt, Request request) throws Exception {
+		long documentId = RequestParamUtil.getDocumentId(request);
+		if (!hasDocumentAccess(username, documentId)) {
+			throw new WrongCredentialsException();
 		}
 
-		String userName = RequestParamUtil.getUserName(request);
-		long documentId = RequestParamUtil.getDocumentId(request);
 		long chapterId = RequestParamUtil.getChapterId(request);
 		boolean finishEditing = RequestParamUtil.getFinishEditing(request);
 		int level = RequestParamUtil.getLevel(request);
@@ -191,70 +215,67 @@ public class DocumentService {
 		String body = RequestParamUtil.getBody(request);
 		
 		Chapter entity = chapterRepo.findById(chapterId).get();
-		writeChapterToHistory(entity, "update", request.getUserId());
+		writeChapterToHistory(entity, "update", username);
 
 		entity.setLevel(level);
 		entity.setTitle(title);
 		entity.setBody(body);
 		chapterRepo.save(entity);
 
-		Response response = createChapterDisplayResponse(userName, documentId, "Response for: saveChapter");
+		Response response = createChapterDisplayResponse(username, jwt, documentId, "Response for: saveChapter");
 		response.setFinishEditing(finishEditing);
 		response.setEditChapterMessage("Saved. (Server time at save: " + new SimpleDateFormat("HH:mm:ss").format(System.currentTimeMillis()) + ")");
 		return response;
 	}
 	
-	private void writeToHistory(Object entity, String objectType, String action, long userId) throws Exception {
+	private void writeToHistory(Object entity, String objectType, String action, String userName) throws Exception {
 		HistoryLog historyLog = new HistoryLog();
 		historyLog.setAction(action);
 		historyLog.setObjectType(objectType);
-		historyLog.setUserId(userId);
+		historyLog.setUserName(userName);
 		historyLog.setObjectValue(new ObjectMapper().writeValueAsString(entity));
 		historyLogRepo.save(historyLog);
 	}
 
-	private void writeChapterToHistory(Chapter entity, String action, long userId) throws Exception {
-		writeToHistory(entity, "chapter", action, userId);
+	private void writeChapterToHistory(Chapter entity, String action, String userName) throws Exception {
+		writeToHistory(entity, "chapter", action, userName);
 	}
 	
-	private void writeDocumentToHistory(Document entity, String action, long userId) throws Exception {
-		writeToHistory(entity, "document", action, userId);
+	private void writeDocumentToHistory(Document entity, String action, String userName) throws Exception {
+		writeToHistory(entity, "document", action, userName);
 	}
 	
-	public Response deleteChapter(Request request) throws Exception {
-		if (!credentialsAndDocumentAccessOk(request)) {
-			return createWrongCredentialsResponse(); 
-		}
-		String userName = RequestParamUtil.getUserName(request);
+	public Response deleteChapter(String username, String jwt, Request request) throws Exception {
 		long documentId = RequestParamUtil.getDocumentId(request);
+		if (!hasDocumentAccess(username, documentId)) {
+			throw new WrongCredentialsException();
+		}
+		
 		long chapterId = RequestParamUtil.getChapterId(request);
 
 		Chapter entity = chapterRepo.findById(chapterId).get();
-		writeChapterToHistory(entity, "delete", request.getUserId());
+		writeChapterToHistory(entity, "delete", username);
 		entity.setActive(0);
 		chapterRepo.save(entity);
 		
-		return createChapterDisplayResponse(userName, documentId, "Response for: deleteChapter");
+		return createChapterDisplayResponse(username, jwt, documentId, "Response for: deleteChapter");
 	}
 
-	public Response addChapter(Request request) throws Exception {
-		if (!credentialsAndDocumentAccessOk(request)) {
-			return createWrongCredentialsResponse(); 
-		}
+	public Response addChapter(String username, String jwt, Request request) throws Exception {
 		long documentId = RequestParamUtil.getDocumentId(request);
-		String userName = RequestParamUtil.getUserName(request);
+		if (!hasDocumentAccess(username, documentId)) {
+			throw new WrongCredentialsException();
+		}
+
 		long chapterId = RequestParamUtil.getChapterId(request);
 		int level = RequestParamUtil.getLevel(request);
 
 		if (chapterId == CHAPTER_ID_END_OF_DOCUMENT) {
 			logger.debug("addChapter: end of document");
-			Long maxSequence = chapterRepo.maxOrderSequence(documentId);
-			if (maxSequence == null) {
-				maxSequence = 0L;
-			}
+			long maxSequence = getMaxOrderSequence(documentId);
 			Chapter entity = createNewChapterEntity(documentId, level, maxSequence + 1);
 			chapterRepo.save(entity);
-			return createChapterDisplayResponse(userName, documentId, "Response for: addChapter", entity.getChapterId(), entity.getLevel());
+			return createChapterDisplayResponse(username, jwt, documentId, "Response for: addChapter", entity.getChapterId(), entity.getLevel());
 		}
 
 		Chapter chapterEntity = chapterRepo.findById(chapterId).get();
@@ -263,16 +284,48 @@ public class DocumentService {
 		
 		Chapter entity = createNewChapterEntity(documentId, level, newEntityOrderSequence);
 		chapterRepo.save(entity);
-		return createChapterDisplayResponse(userName, documentId, "Response for: addChapter", entity.getChapterId(), entity.getLevel());
+		return createChapterDisplayResponse(username, jwt, documentId, "Response for: addChapter", entity.getChapterId(), entity.getLevel());
 	}
 
-	public Response moveChapter(Request request) throws Exception {
-		if (!credentialsAndDocumentAccessOk(request)) {
-			return createWrongCredentialsResponse(); 
+	private long getMaxOrderSequence(long documentId) {
+		Long maxSequence = chapterRepo.maxOrderSequence(documentId);
+		if (maxSequence == null) {
+			return 0;
+		}
+		return maxSequence;
+	}
+
+	public Response editChapter(String username, String jwt, Request request) throws Exception {
+		long documentId = RequestParamUtil.getDocumentId(request);
+		long chapterId = RequestParamUtil.getChapterId(request);
+		if (!hasDocumentAccess(username, documentId)) {
+			throw new WrongCredentialsException();
 		}
 
-		String userName = RequestParamUtil.getUserName(request);
+		Chapter chapter = chapterRepo.findById(chapterId).get();
+		Response response = new Response("editing chapter", ResponseConstants.RESPONSE_CODE_OK);
+
+		response.setChapterToEdit(chapterId);
+		response.setChapterToEditTitle(chapter.getTitle());
+		response.setChapterToEditBody(replaceNewLineSymbol(chapter.getBody()));
+		response.setChapterToEditLevel(chapter.getLevel());
+		
+		return response;
+	}
+	
+	private String replaceNewLineSymbol(String text) {
+		if (text == null) {
+			return null;
+		}
+		return text.replace("{nl}", "\n");
+	}
+	
+	public Response moveChapter(String username, String jwt, Request request) throws Exception {
 		long documentId = RequestParamUtil.getDocumentId(request);
+		if (!hasDocumentAccess(username, documentId)) {
+			throw new WrongCredentialsException();
+		}
+		
 		long chapterId = RequestParamUtil.getChapterId(request);
 		int direction = RequestParamUtil.getDirection(request);
 		Chapter chapterEntity = chapterRepo.findById(chapterId).get();
@@ -300,23 +353,91 @@ public class DocumentService {
 			logger.debug("moveChapter: chapterEntityToSwitch = " + chapterEntityToSwitch);
 		}
 		
-		return createChapterDisplayResponse(userName, documentId, "Response for: moveChapter");
+		return createChapterDisplayResponse(username, jwt, documentId, "Response for: moveChapter");
 	}
 
-	public Response getDocuments(Request request) throws Exception{
-		if (!credentialsAndDocumentAccessOk(request)) {
-			return createWrongCredentialsResponse(); 
+	public Response cloneChapter(String username, String jwt, Request request) throws Exception {
+		long documentId = RequestParamUtil.getDocumentId(request);
+		if (!hasDocumentAccess(username, documentId)) {
+			throw new WrongCredentialsException();
 		}
-		String userName = RequestParamUtil.getUserName(request);
-		return createDocumentListResponse(userName, "Response for: getDocuments", null);
+		
+		long chapterId = RequestParamUtil.getChapterId(request);
+		
+		Chapter chapter = chapterRepo.findById(chapterId).get();
+		em.detach(chapter);
+		chapter.setChapterId(0);
+		chapter.setTitle("CLONE: " + chapter.getTitle());
+		chapter = chapterRepo.save(chapter);
+
+		Collection<PictureIdNameAndType> pictureInfos = pictureRepo.findByChapterId(chapterId);
+		for (PictureIdNameAndType i: pictureInfos) {
+			Picture picture = pictureRepo.findById(i.getPicId()).get();
+			picture.setChapterId(chapter.getChapterId());
+			em.detach(picture);
+			picture.setPicId(0);
+			pictureRepo.save(picture);
+		}
+
+		long newEntityOrderSequence = chapter.getOrderSequence() + 1;
+		chapterRepo.incrementOrderSequence(documentId, newEntityOrderSequence);
+
+		return createChapterDisplayResponse(username, jwt, documentId, "clonedChapter");
+	}
+	
+	public Response moveChapterToOtherDocument(String username, String jwt, Request request) throws Exception {
+		long documentId = RequestParamUtil.getDocumentId(request);
+		if (!hasDocumentAccess(username, documentId)) {
+			throw new WrongCredentialsException();
+		}
+		long destDocumentId = RequestParamUtil.getDestDocumentId(request);
+		if (!hasDocumentAccess(username, destDocumentId)) {
+			throw new WrongCredentialsException();
+		}
+		
+		long chapterId = RequestParamUtil.getChapterId(request);
+		
+		Document destDocument = documentsRepo.findById(destDocumentId).get();
+		
+		Chapter chapter = chapterRepo.findById(chapterId).get();
+		chapter.setDocumentId(destDocumentId);
+		long maxSequence = getMaxOrderSequence(destDocumentId);
+		chapter.setOrderSequence(maxSequence + 1);
+		chapterRepo.save(chapter);
+		
+		writeToHistory(chapter, "Chapter", "Moved to different document", username);
+
+		Response response = createChapterDisplayResponse(username, jwt, destDocumentId, "moved chapter to different document");
+		response.setAlertMessage("Moved chapter to document '" + destDocument.getTitle() + "'");
+		response.setSelectedDocumentId(destDocumentId);
+		
+		
+		return response;
+	}
+	
+	public Response getDocuments(String username, Request request) throws Exception{
+		return createDocumentListResponse(username, "Response for: getDocuments", null);
 	}
 
-	public Response addDocument(Request request) throws Exception {
-		if (!credentialsOk(request)) {
-			return createWrongCredentialsResponse();
+	public Response chooseDocumentToMoveChapter(String username, Request request) throws Exception{
+		Set<Long> userDocuments = documentAccessRepo.getUserDocuments(username);
+		List<Document> possibleDocumentEntities = documentsRepo.getActiveDocumentsByName();
+		long currentDocumentId = RequestParamUtil.getDocumentId(request);
+		
+		List<Document> documentEntities = new ArrayList<Document>();
+		for (Document i: possibleDocumentEntities) {
+			if ((userDocuments.contains(i.getDocumentId())) && (i.getDocumentId() != currentDocumentId)) {
+				documentEntities.add(i);
+			}
 		}
-		String userName = RequestParamUtil.getUserName(request);
-
+		
+		List<DocumentDto> documentDtoList = toDocumentDtoList(documentEntities);
+		Response response = new Response("", ResponseConstants.RESPONSE_CODE_OK);
+		response.setPossibleDocumentsToMoveTo(documentDtoList);
+		return response;
+	}
+	
+	public Response addDocument(String username, Request request) throws Exception {
 		String title = RequestParamUtil.getTitle(request);
 
 		Document document = new Document();
@@ -329,114 +450,61 @@ public class DocumentService {
 		
 		DocumentAccess documentAccess = new DocumentAccess();
 		documentAccess.setDocumentId(document.getDocumentId());
-		documentAccess.setUserName(userName);
+		documentAccess.setUserName(username);
 		documentAccessRepo.save(documentAccess);
 		
-		Response response = createDocumentListResponse(userName, "Document created", document.getDocumentId());
+		Response response = createDocumentListResponse(username, "Document created", document.getDocumentId());
 		response.setChapters(new ArrayList<ChapterDto>());
 		response.setDocumentTitle(document.getTitle());
 		return response;
 	}
 
-	public Response editDocument(Request request) throws Exception {
-		if (!credentialsAndDocumentAccessOk(request)) {
-			return createWrongCredentialsResponse(); 
-		}
-		String userName = RequestParamUtil.getUserName(request);
-		
-		String title = RequestParamUtil.getTitle(request);
+	public Response editDocument(String username, Request request) throws Exception {
 		long documentId = RequestParamUtil.getDocumentId(request);
+		if (!hasDocumentAccess(username, documentId)) {
+			throw new WrongCredentialsException();
+		}
+
+		String title = RequestParamUtil.getTitle(request);
 		Document document = documentsRepo.findById(documentId).get();
-		writeDocumentToHistory(document, "rename", request.getUserId());
+		writeDocumentToHistory(document, "rename", username);
 		
 		document.setTitle(title);
 		documentsRepo.save(document);
 		
-		Response response = createDocumentListResponse(userName, "Document renamed", documentId);
+		Response response = createDocumentListResponse(username, "Document renamed", documentId);
 		response.setDocumentTitle(document.getTitle());
 		return response;
 	}
 
-	public Response deleteDocument(Request request) throws Exception {
-		if (!credentialsAndDocumentAccessOk(request)) {
-			return createWrongCredentialsResponse(); 
-		}
-		String userName = RequestParamUtil.getUserName(request);
-		
+	public Response deleteDocument(String username, Request request) throws Exception {
 		long documentId = RequestParamUtil.getDocumentId(request);
+		if (!hasDocumentAccess(username, documentId)) {
+			throw new WrongCredentialsException();
+		}
 		
 		Document document = documentsRepo.findById(documentId).get();
 		document.setActive(0);
 		documentsRepo.save(document);
 		
-		Response response = createDocumentListResponse(userName, "Document renamed", -1L);
+		writeDocumentToHistory(document, "delete", username);
+		
+		Response response = createDocumentListResponse(username, "Document deleted", -1L);
 		response.setDocumentTitle(document.getTitle());
 		response.setChapters(new ArrayList<ChapterDto>());
 		return response;
 	}
 
-	public Response login(Request request) throws Exception{
-		String userName = RequestParamUtil.getUserName(request);
-		String password = RequestParamUtil.getPassword(request);
-
-		User user = userRepo.findByUserName(userName);
-		if ((user != null) && (user.getPassword().equals(password))){
-			Response response = createDocumentListResponse(user.getUserName(), "login complete", -1L);
-			response.setDocumentTitle("");
-			response.setChapters(new ArrayList<ChapterDto>());
-			return response;
-		}
-		
-		return createWrongCredentialsResponse();
-	}
-
-	private boolean credentialsOk(Request request) throws Exception {
-		String userName = RequestParamUtil.getUserName(request);
-		String password = RequestParamUtil.getPassword(request);
-
-		return userRepo.countUserNamePassword(userName, password) > 0;
-	}
-	
-	private boolean checkCredentialsAndExportRight(String userName, String password) throws Exception {
-		if (!checkUserNameAndPassword(userName, password)) {
-			return false;
-		}
-		
-		return hasExportRight(userName);
-	}
-
-	private boolean checkUserNameAndPassword(String userName, String password) {
-		return userRepo.countUserNamePassword(userName, password) > 0;
-	}
-
-	private boolean hasExportRight(String userName) {
-		User user = userRepo.findById(userName).get();
-		return user.getRole() == MainConstants.USER_ROLE_ADMIN;
-	}
-	
-	private boolean credentialsAndDocumentAccessOk(Request request) throws Exception {
-		if (!credentialsOk(request)) {
-			return false;
-		}
-		String userName = RequestParamUtil.getUserName(request);
-		long documentId = RequestParamUtil.getDocumentId(request);
-		return hasDocumentAccess(userName, documentId);
-	}
-
-	private boolean hasDocumentAccess(String userName, long documentId) {
+	public boolean hasDocumentAccess(String userName, long documentId) {
 		return documentAccessRepo.countAccess(userName, documentId) > 0;
 	}
 
-	private Response createWrongCredentialsResponse() {
+	public Response createWrongCredentialsResponse() {
 		Response response = new Response("Wrong username or password", ResponseConstants.RESPONSE_CODE_WRONG_CREDENTIALS);
 		return response;
 	}
 
-	public List<String> listExportItems(String userName, String password) throws Exception, WrongCredentialsException {
-		if (!checkCredentialsAndExportRight(userName, password)) {
-			throw new WrongCredentialsException(); 
-		}
-		
+	public List<String> listExportItems() throws Exception, WrongCredentialsException {
     	List<String> result = new ArrayList<String>();
     	result.add(MainConstants.EXPORT_ITEM_ENTITIES);
     	
@@ -445,14 +513,15 @@ public class DocumentService {
     		result.add(exportLogic.getEncodedFilePath(i));
     	}
 
+    	Collection<PictureInfo> pictureInfos = pictureRepo.getAllIdsNamesAndTypes();
+    	for (PictureInfo i: pictureInfos) {
+    		result.add(exportLogic.getEncodedFilePath(i));
+    	}
+    	
 		return result;
 	}
 
-	public String exportItem(String userName, String password, String itemPath) throws Exception, WrongCredentialsException {
-		if (!checkCredentialsAndExportRight(userName, password)) {
-			throw new WrongCredentialsException(); 
-		}
-		
+	public byte[] exportItem(String itemPath) throws Exception, WrongCredentialsException {
 		ExportType exportType = exportLogic.getExportTypeFromEncodedFilePath(itemPath);
 
 		switch (exportType) {
@@ -460,56 +529,42 @@ public class DocumentService {
 			return getExportEntitiesData();
 		case HTML_FILE:
 			return getExportHtmlData(itemPath);
+		case IMAGE_FILE:
+			return getImageData(itemPath);
 		default:
 			throw new Exception("Unknown type" + exportType);
 		}
-		
 	}
 
-	private String getExportEntitiesData() throws JsonProcessingException {
+	private byte[] getExportEntitiesData() throws Exception {
 		ExportDataDto result = new ExportDataDto();
 		result.setDocuments(documentsRepo.findAll());
 		result.setChapters(chapterRepo.findAll());
 		result.setDocumentAccess(documentAccessRepo.findAll());
 		
 		String resultString = new ObjectMapper().writeValueAsString(result);
-		return resultString;
+		return new ExportLogic().toBytes(resultString);
 	}
 	
-	/**
-	 * example call for testing: >>http://localhost:8080/exportHtml?documentId=1&userName=u&password=pw<<
-	 */
-	public String exportDocumentAsHtml(String userName, String password, long documentId) throws Exception {
-		if (!checkUserNameAndPassword(userName, password)){
-			throw new Exception("Wrong username / password");
-		}
-		
-		boolean exportRights = hasExportRight(userName);
-		boolean documentAccess = hasDocumentAccess(userName, documentId);
-		
-		if ((!exportRights) && (!documentAccess)) {
-			throw new Exception("No rights to access document " + documentId);
-		}
-
-		Document document = documentsRepo.findById(documentId).get();
-		List<Chapter> chapterEntityList = chapterRepo.getDocumentChapters(documentId);
-		
-		
-		return new HtmlExportService().createHtml(document, chapterEntityList, toChapterDtoList(chapterEntityList));
-	}
-	
-	private String getExportHtmlData(String itemPath) throws Exception {
+	private byte[] getExportHtmlData(String itemPath) throws Exception {
 		long documentId = exportLogic.getDocumentIdFromEncodedHtmlFilePath(itemPath);		
 		List<Chapter> chapterEntityList = chapterRepo.getDocumentChapters(documentId);
 		Document document = documentsRepo.findById(documentId).get();
-		return new HtmlExportService().createHtml(document, chapterEntityList, toChapterDtoList(chapterEntityList));
+		String resultString = new HtmlExportService().createHtml(document, chapterEntityList, toChapterDtoList(null, chapterEntityList, true));
+		return new ExportLogic().toBytes(resultString);
+	}
+	
+	private byte[] getImageData(String itemPath) throws Exception {
+		long pictureId = exportLogic.getPictureIdFromEncodedHtmlFilePath(itemPath);
+		Picture picture = pictureRepo.findById(pictureId).get();
+		return picture.getData();
 	}
 
-	public Response getPossibleUsersToGrantAccess(Request request) throws Exception {
-		if (!credentialsAndDocumentAccessOk(request)) {
-			throw new WrongCredentialsException(); 
-		}
+	public Response getPossibleUsersToGrantAccess(String username, Request request) throws Exception {
 		long documentId = RequestParamUtil.getDocumentId(request);
+		if (!hasDocumentAccess(username, documentId)) {
+			throw new WrongCredentialsException();
+		}
 
 		Set<String> result = getPossibleUsersNamesToGrantAccess(documentId);
 		Response response = new Response("Possible users", ResponseConstants.RESPONSE_CODE_OK);
@@ -525,11 +580,11 @@ public class DocumentService {
 		return result;
 	}
 
-	public Response grantAccess(Request request) throws Exception {
-		if (!credentialsAndDocumentAccessOk(request)) {
-			throw new WrongCredentialsException(); 
-		}
+	public Response grantAccess(String username, Request request) throws Exception {
 		long documentId = RequestParamUtil.getDocumentId(request);
+		if (!hasDocumentAccess(username, documentId)) {
+			throw new WrongCredentialsException();
+		}
 		String grantUserName = RequestParamUtil.getGrantUserName(request);
 
 		DocumentAccess documentAccess = new DocumentAccess();
@@ -542,7 +597,5 @@ public class DocumentService {
 		response.setUserChoices(new ArrayList<String>(result));
 		return response;
 	}
-
-
 
 }

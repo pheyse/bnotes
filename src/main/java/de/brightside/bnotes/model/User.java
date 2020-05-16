@@ -1,25 +1,67 @@
 package de.brightside.bnotes.model;
 
+import java.util.Arrays;
+import java.util.List;
+
+import javax.persistence.Column;
 import javax.persistence.Entity;
+import javax.persistence.FetchType;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
 import javax.persistence.Id;
-import javax.validation.constraints.Size;
+import javax.persistence.JoinColumn;
+import javax.persistence.JoinTable;
+import javax.persistence.ManyToMany;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 @Entity
 public class User {
-	@Id @Size(min = 0, max = 100)
-	private String userName;
-	
-	@Size(min = 0, max = 100)
-	private String password;
-	
-	private int role;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "id")
+    private Long id;
 
-	public String getUserName() {
-		return userName;
+    public User(String username, String password, Role role) {
+        this.username = username;
+        this.password = password;
+        this.roles = Arrays.asList(role);
+    }
+
+    protected User() {
+    }
+    
+    @Column(name = "username")
+    private String username;
+
+    @Column(name = "password")
+    @JsonIgnore
+    private String password;
+
+    @ManyToMany(fetch = FetchType.EAGER)
+    @JoinTable(name = "user_role"
+             , joinColumns = @JoinColumn(name = "user_id", referencedColumnName = "id")
+             , inverseJoinColumns = @JoinColumn(name = "role_id", referencedColumnName = "id"))
+    private List<Role> roles;
+
+    
+    
+    
+    
+	public Long getId() {
+		return id;
 	}
 
-	public void setUserName(String userName) {
-		this.userName = userName;
+	public void setId(Long id) {
+		this.id = id;
+	}
+
+	public String getUsername() {
+		return username;
+	}
+
+	public void setUsername(String username) {
+		this.username = username;
 	}
 
 	public String getPassword() {
@@ -30,17 +72,17 @@ public class User {
 		this.password = password;
 	}
 
-	public int getRole() {
-		return role;
+	public List<Role> getRoles() {
+		return roles;
 	}
 
-	public void setRole(int role) {
-		this.role = role;
+	public void setRoles(List<Role> roles) {
+		this.roles = roles;
 	}
 
 	@Override
 	public String toString() {
-		return "User [userName=" + userName + ", password=" + password + ", role=" + role + "]";
+		return "User [id=" + id + ", username=" + username + ", roles=" + roles + "]";
 	}
-	
+    
 }

@@ -1,12 +1,12 @@
 package de.brightside.bnotes;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration;
 import org.springframework.context.annotation.EnableAspectJAutoProxy;
-import org.springframework.context.annotation.PropertySource;
-import org.springframework.context.annotation.PropertySources;
 
 
 @SpringBootApplication
@@ -18,10 +18,23 @@ import org.springframework.context.annotation.PropertySources;
 //})
 @EnableAutoConfiguration(exclude = FlywayAutoConfiguration.class)
 @EnableAspectJAutoProxy(proxyTargetClass=true)
-public class BnotesApplication {
+public class BnotesApplication{
+    final Logger LOGGER = LoggerFactory.getLogger(BnotesApplication.class);
 
 	public static void main(String[] args) {
 		SpringApplication.run(BnotesApplication.class, args);
 	}
 
+	/* use this code to encrypt a password for the database:*/
+//	@Override
+//	public void run(String... args) throws Exception {
+//		printHashedPassword("password");
+//	}
+//
+//	private void printHashedPassword(String passwordToHash) {
+//		BCryptPasswordEncoder encoder = new BCryptPasswordEncoder(MainConstants.PASSWORD_ENCONDER_STRENGTH);
+//		String encrypted = encoder.encode(passwordToHash);
+//		LOGGER.info("Encrypted: >>" + encrypted + "<<");
+//	}
+	/**/
 }

@@ -12,11 +12,15 @@ public class Response {
 	private List<DocumentDto> documents;
 	private Long chapterToEdit;
 	private Integer chapterToEditLevel;
+	private String chapterToEditTitle;
+	private String chapterToEditBody;
 	private String documentTitle;
 	private Long selectedDocumentId;
 	private boolean finishEditing;
 	private String editChapterMessage;
 	private List<String> userChoices;
+	private String alertMessage;
+	private List<DocumentDto> possibleDocumentsToMoveTo;
 	
 	public Response(String info, int status) {
 		this.info = info;
@@ -107,5 +111,38 @@ public class Response {
 	public void setUserChoices(List<String> userChoices) {
 		this.userChoices = userChoices;
 	}
-	
+
+	public String getAlertMessage() {
+		return alertMessage;
+	}
+
+	public void setAlertMessage(String alertMessage) {
+		this.alertMessage = alertMessage;
+	}
+
+	public String getChapterToEditTitle() {
+		return chapterToEditTitle;
+	}
+
+	public void setChapterToEditTitle(String chapterToEditTitle) {
+		this.chapterToEditTitle = chapterToEditTitle;
+	}
+
+	public String getChapterToEditBody() {
+		return chapterToEditBody;
+	}
+
+	public void setChapterToEditBody(String chapterToEditBody) {
+		this.chapterToEditBody = chapterToEditBody;
+	}
+
+	public List<DocumentDto> getPossibleDocumentsToMoveTo() {
+		return possibleDocumentsToMoveTo;
+	}
+
+	public void setPossibleDocumentsToMoveTo(List<DocumentDto> possibleDocumentsToMoveTo) {
+		this.possibleDocumentsToMoveTo = possibleDocumentsToMoveTo;
+	}
+
+
 }

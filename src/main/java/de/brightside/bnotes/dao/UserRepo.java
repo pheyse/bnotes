@@ -1,5 +1,6 @@
 package de.brightside.bnotes.dao;
 
+import java.util.Optional;
 import java.util.Set;
 
 import org.springframework.data.jpa.repository.JpaRepository;
@@ -9,13 +10,9 @@ import de.brightside.bnotes.model.User;
 
 public interface UserRepo extends JpaRepository<User, String>{
 
-	@Query("SELECT COUNT(u) FROM User u WHERE u.userName=?1 and u.password=?2")
-    public Long countUserNamePassword(String userName, String password);
-
-	@Query("SELECT u.userName FROM User u")
+	@Query("SELECT u.username FROM User u")
 	public Set<String> getAllUserNames();
 	
-	public User findByUserName(String userName);
-	
+	Optional<User> findByUsername(String userName);
 	
 }

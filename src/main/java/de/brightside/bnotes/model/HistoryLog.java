@@ -6,6 +6,7 @@ import javax.persistence.Entity;
 import javax.persistence.GeneratedValue;
 import javax.persistence.GenerationType;
 import javax.persistence.Id;
+import javax.persistence.Lob;
 import javax.validation.constraints.Size;
 
 import org.hibernate.annotations.CreationTimestamp;
@@ -17,10 +18,14 @@ public class HistoryLog {
 	private long historyLogId;
 	@CreationTimestamp
 	private Timestamp time;
-	private long userId;
 	private String objectType;
 	@Size(min = 0, max = 20000)
 	private String objectValue;
+	@Lob
+	byte[] objectBinaryData;
+	@Size(min = 0, max = 100)
+	private String userName;
+	
 	private String action;
 
 	public long getHistoryLogId() {
@@ -28,12 +33,6 @@ public class HistoryLog {
 	}
 	public void setHistoryLogId(long historyLogId) {
 		this.historyLogId = historyLogId;
-	}
-	public long getUserId() {
-		return userId;
-	}
-	public void setUserId(long userId) {
-		this.userId = userId;
 	}
 	public String getObjectType() {
 		return objectType;
@@ -60,12 +59,24 @@ public class HistoryLog {
 	public void setTime(Timestamp time) {
 		this.time = time;
 	}
-	@Override
-	public String toString() {
-		return "HistoryLog [historyLogId=" + historyLogId + ", time=" + time + ", userId=" + userId + ", objectType="
-				+ objectType + ", objectValue=" + objectValue + ", action=" + action + "]";
+
+	public byte[] getObjectBinaryData() {
+		return objectBinaryData;
+	}
+	public void setObjectBinaryData(byte[] objectBinaryData) {
+		this.objectBinaryData = objectBinaryData;
 	}
 
-	
-	
+	public String getUserName() {
+		return userName;
+	}
+	public void setUserName(String userName) {
+		this.userName = userName;
+	}
+	@Override
+	public String toString() {
+		return "HistoryLog [historyLogId=" + historyLogId + ", time=" + time + ", objectType="
+				+ objectType + ", objectValue=" + objectValue + ", userName=" + userName + ", action=" + action + "]";
+	}
+
 }

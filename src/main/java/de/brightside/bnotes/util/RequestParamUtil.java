@@ -34,11 +34,19 @@ public class RequestParamUtil {
 	public static long getDocumentId(Request request) throws Exception{
 		return getLongValue(request, RequestParamConstants.DOC_ID);
 	}
+	
+	public static long getDestDocumentId(Request request) throws Exception {
+		return getLongValue(request, RequestParamConstants.DEST_DOC_ID);
+	}
 
 	public static long getChapterId(Request request) throws Exception {
 		return getLongValue(request, RequestParamConstants.CHAPTER_ID);
 	}
 
+	public static long getImageId(Request request) throws Exception {
+		return getLongValue(request, RequestParamConstants.IMAGE_ID);
+	}
+	
 	public static boolean getFinishEditing(Request request) throws Exception {
 		return getBooleanValue(request, RequestParamConstants.FINISH_EDITING);
 	}
@@ -59,15 +67,8 @@ public class RequestParamUtil {
 		return getStringValue(request, RequestParamConstants.BODY);
 	}
 
-	public static String getUserName(Request request) throws Exception {
-		return getStringValue(request, RequestParamConstants.USER_NAME);
-	}
-
-	public static String getPassword(Request request) throws Exception {
-		return getStringValue(request, RequestParamConstants.PASSWORD);
-	}
-
 	public static String getGrantUserName(Request request) throws Exception {
 		return getStringValue(request, RequestParamConstants.GRANT_USER_NAME);
 	}
+
 }

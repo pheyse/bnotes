@@ -13,9 +13,8 @@
 #
 # Execution Steps:
 # ----------------
-# 1. the web service "signing" is called via curl.exe to retrieve the JWT which is then used for the next calls
-# 2. The web service "listExportItems" is called via curl.exe
-# 3. For each each export item the web service "exportItem" is called via curl.exe
+# 1. The web service "listExportItems" is called via curl.exe
+# 2. For each each export item the web service "exportItem" is called via curl.exe
 #    The data is written to the output directory given in the properties file. There a sub-folder based on the current time is created.
 # #######################################################################################################################################
 $ErrorActionPreference = "Stop"
@@ -53,26 +52,11 @@ if (-Not(Test-Path "$outputDir")){
   New-Item -ItemType "directory" -Path "$outputDir"
 }
 
-# triple quotes are needed on windows
-$signinDataJson = '{"""username""":"""' + $username + '""","""password""":"""' + $password + '"""}'
-Write-Host "signinDataJson: >>$signinDataJson<<"
-
-$signInUrl = $hostUrl + "users/signin"
-Write-Host "signInUrl: '$signInUrl'"
-
-$jwt = curl.exe -X POST --header "Content-Type: application/json" --data $signinDataJson $signInUrl -f
-if ($LastExitCode -ne 0) {
-  throw "curl.exe sign in (get JWT) failed"
-}
-Write-Host "JWT: '$jwt'"
-$jwtHeader = 'Authorization: Bearer ' + $jwt
-Write-Host "JWT header: '$jwtHeader'"
-
-$listEntitiesUrl = $hostUrl + "listExportItems"
+$listEntitiesUrl = $hostUrl + "listExportItems?userName=" + $username + "&password=" + $password
 
 Write-Host "listEntitiesUrl: '$listEntitiesUrl'"
 
-$exportItemsJson = curl.exe -X POST --header $jwtHeader $listEntitiesUrl -f
+$exportItemsJson = curl.exe -X POST $listEntitiesUrl -f
 if ($LastExitCode -ne 0) {
   throw "curl.exe to list export items failed"
 }
@@ -90,8 +74,9 @@ $exportItems = $exportItems.items
 
 Write-Host "exportItems: '$exportItems'"
 
+
 for ($i=0; $i -lt $exportItems.length; $i++){
-  $exportEntityUrl = $hostUrl + "exportItem?item=" + $exportItems[$i]
+  $exportEntityUrl = $hostUrl + "exportItem?userName=" + $username + "&password=" + $password + "&item=" + $exportItems[$i]
   $itemSubPath = $exportItems[$i].replace("%2F", "\")
   $outputFilePath = $outputDir + $itemSubPath
 
@@ -107,7 +92,7 @@ for ($i=0; $i -lt $exportItems.length; $i++){
   Write-Host "parentFile = "$parentFile
   Write-Host "outputFilePath = "$outputFilePath
 
-  curl.exe -X POST --header $jwtHeader $exportEntityUrl -o $outputFilePath -f
+  curl.exe -X POST $exportEntityUrl -o $outputFilePath -f
   if ($LastExitCode -ne 0) {
     throw "curl.exe to export item '" + $exportItems[$i] + "'failed"
   }

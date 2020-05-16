@@ -1,5 +1,7 @@
 package de.brightside.bnotes.dto;
 
+import java.util.List;
+
 public class ChapterDto {
 	private long chapterId;
 	private int level;
@@ -7,6 +9,8 @@ public class ChapterDto {
 	private String indexLabel;
 	private String bodyHtml;
 	private String bodyRaw;
+	private List<IdAndName> images;
+	
 	public long getChapterId() {
 		return chapterId;
 	}
@@ -43,10 +47,16 @@ public class ChapterDto {
 	public void setBodyRaw(String bodyRaw) {
 		this.bodyRaw = bodyRaw;
 	}
+	public List<IdAndName> getImages() {
+		return images;
+	}
+	public void setImages(List<IdAndName> images) {
+		this.images = images;
+	}
 	@Override
 	public String toString() {
 		return "ChapterDto [chapterId=" + chapterId + ", level=" + level + ", title=" + title + ", indexLabel="
-				+ indexLabel + ", bodyHtml=" + bodyHtml + ", bodyRaw=" + bodyRaw + "]";
+				+ indexLabel + ", bodyHtml=" + bodyHtml + ", bodyRaw=" + bodyRaw + ", images=" + images + "]";
 	}
-	
+
 }

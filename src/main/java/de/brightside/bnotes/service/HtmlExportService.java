@@ -12,12 +12,14 @@ import org.apache.commons.text.StringEscapeUtils;
 import org.springframework.core.io.DefaultResourceLoader;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.ResourceLoader;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.FileCopyUtils;
 
 import de.brightside.bnotes.dto.ChapterDto;
 import de.brightside.bnotes.model.Chapter;
 import de.brightside.bnotes.model.Document;
 
+@Transactional
 public class HtmlExportService {
 	private static final String TEMPLATE_PATH = "classpath:html-export-template.html";
 	private static final String PLACEHOLDER_TITLE = "${title}";
@@ -55,7 +57,7 @@ public class HtmlExportService {
 		for (ChapterDto i: chapters) {
 			String headingTag = "h" + Math.min(i.getLevel(), 6);
 			result.append("<" + headingTag + " id = 'cap" + index + "'>" + escapeHtml(i.getIndexLabel() + " " + i.getTitle()) + "</" + headingTag + ">\n");
-			result.append("<p class=\"chapter-view\">" + i.getBodyHtml() + "</p>\n");
+			result.append("<div class=\"chapter-view\">" + i.getBodyHtml() + "</div>\n");
 			result.append("</br>\n");
 			index ++;
 		}
@@ -69,20 +71,16 @@ public class HtmlExportService {
 		int index = 0;
 		for (ChapterDto i: chapters) {
 			int padding = 2 * i.getLevel();
-//			result.append("<span style = 'padding-left: " + padding + "mm'>");
 			result.append("<span>");
 			result.append(repeat("&nbsp;", padding));
 			result.append("</span>");
 			
 			result.append("<a href='#cap" + index + "'>");
-//			result.append("&nbsp;".repeat(padding));
 			result.append(escapeHtml(i.getIndexLabel()) + " " + escapeHtml(i.getTitle()));
 			result.append("</a>");
-//			result.append("</span>");
 			result.append("<br>\n");
 			index ++;
 		}
-		
 		
 		return result.toString();
 	}

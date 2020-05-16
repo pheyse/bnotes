@@ -31,4 +31,12 @@ Editing a document
    - documents can be shared between users
    - export web services and PowerShell script to export all server data
    - saving w/o closing the edit window 
+ - Version 1.2.0 (2020-05-16)
+   - using Spring Security (JWT)
+   - images in documents: upload, delete, add to Bright Markdown code
+   - images are downloaded in export service
+   - updated to new Bright Markdown version
+   - feature to move chapters to a different document
+   - feature to duplicate chapters (incl. images)
+   - nicer format of chapter headings within the Bright Markdown text
 

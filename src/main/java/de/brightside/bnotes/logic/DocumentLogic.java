@@ -45,7 +45,6 @@ public class DocumentLogic {
 		
 		return result;
 	}
-
 	
 	private Integer findIndex(List<Chapter> chapters, long chapterId) {
 		int index = 0;
@@ -87,6 +86,5 @@ public class DocumentLogic {
 		
 		return null;
 	}
-	
 	
 }

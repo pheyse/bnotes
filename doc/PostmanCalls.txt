@@ -1,0 +1,25 @@
+expired token:
+>>
+eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1Iiwicm9sZXMiOlt7ImF1dGhvcml0eSI6IlJPTEVfQURNSU4ifSx7ImF1dGhvcml0eSI6IlJPTEVfRURJVCJ9LHsiYXV0aG9yaXR5IjoiUk9MRV9FWFBPUlQifV0sImlhdCI6MTU4OTE5OTUwMywiZXhwIjoxNTg5Mjg1OTAzfQ.PEnPAIK4tFInh7mppRTd8rqOQVAGSA34whFwqIkdttI
+<<
+
+
+
+http://localhost:8080/exportHtml?documentId=1&userName=u&password=pw
+
+http://localhost:8080/exportItem?userName=u&password=pw&item=entities.json
+
+http://localhost:8080/listExportItems?userName=u&password=pw
+
+
+http://localhost:8080/users/signin
+   Body:>>{"username":"u","password":"letmein"}<<
+   Returns: <JWT>
+   
+   
+http://localhost:8080/request
+   Header: Key = "Authorization", Value = <JWT> (from /users/signin)
+   Body: >>{"action":"getDocuments","parameters":{"docId":null}}<<
+   
+Read image
+   URL: >>http://localhost:8080/image/2/<JWT>

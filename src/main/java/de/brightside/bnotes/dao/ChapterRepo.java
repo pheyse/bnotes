@@ -29,4 +29,7 @@ public interface ChapterRepo extends JpaRepository<Chapter,Long>{
 
     @Query(value = "FROM Chapter WHERE active = 1 and documentId = ?1 ORDER BY orderSequence, chapterId")
 	public List<Chapter> findAllActiveOfDocument(long documentId);
+
+    @Query(value = "SELECT chapterId from Chapter")
+    public List<Long> getAllChapterIds();
 }
