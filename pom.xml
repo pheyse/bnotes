@@ -11,7 +11,7 @@
 	</parent>
 	<groupId>de.bright-side.bnotes</groupId>
 	<artifactId>bnotes</artifactId>
-	<version>1.2.0</version>
+	<version>1.2.1</version>
 	<packaging>war</packaging>
 	<name>bnotes</name>
 	<description>Bnotes</description>
@@ -68,7 +68,7 @@
 		<dependency>
 			<groupId>de.bright-side.brightmarkdown</groupId>
 			<artifactId>brightmarkdown</artifactId>
-			<version>1.6.1-legacy-java8</version>
+			<version>1.7.0-legacy-java8</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.commons</groupId>

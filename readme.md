@@ -39,4 +39,5 @@ Editing a document
    - feature to move chapters to a different document
    - feature to duplicate chapters (incl. images)
    - nicer format of chapter headings within the Bright Markdown text
-
+ - Version 1.2.1 (2020-05-26)
+   - updated to BrightMarkdown 1.7.0
