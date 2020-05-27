@@ -41,7 +41,7 @@ CREATE TABLE `picture` (
   `chapter_id` bigint(20) NOT NULL,
   `name` varchar(100) DEFAULT NULL,
   `type` varchar(10) DEFAULT NULL,
-  `data` blob DEFAULT NULL
+  `data` MEDIUMBLOB DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 
